@@ -39,8 +39,7 @@ async def create_connections_table(connection):
             CREATE TABLE IF NOT EXISTS free_games (
                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                 tel_channel TEXT NOT NULL,
-                eitaa_channel TEXT NOT NULL,
-                connect INTEGER
+                eitaa_channel TEXT NOT NULL
             );
 
             """
@@ -110,17 +109,21 @@ async def telegram_event_handler(event):
     if event.message.chat_id == CHAT_ID:
         message = event.message.text
         if message == "/connect":
-            conn = await aiosqlite.connect(DATABASE_NAME)
-            cursor = await conn.curser()
-            await cursor.execute("SELECT * FROM connections")
-            connections = await cursor.fetchall()
-            await conn.close()
+            try:
+                conn = await aiosqlite.connect(DATABASE_NAME)
+                cursor = await conn.curser()
+                await cursor.execute("SELECT * FROM connections")
+                connections = await cursor.fetchall()
+                await conn.close()
+            except Exception as e:
+                print(e)
             connection_button = []
             if connections:
                 await telegram_client.send_message(CHAT_ID, "اتصالات موجود:", buttons=connection_button)
                 for connection in connections:
                     # tel_channel, eitaa_channel = connection
                     print("Bot Started.")
+                    print(connection)
 
 
 
