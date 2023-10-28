@@ -8,8 +8,8 @@ import aiosqlite
 from dotenv import load_dotenv
 
 load_dotenv()
-CHAT_ID = int(os.getenv("CHAT_ID"))
-DATABASE_NAME = int(os.getenv("DATABASE_NAME"))
+CHAT_ID = int(os.getenv("ADMIN_ID"))
+DATABASE_NAME = os.getenv("DATABASE_NAME")
 
 
 telegram_client = TelegramClient('aaa', '23382905', 'e461dd337c4a9c41578cd48c0e9ab3de', proxy=(
@@ -21,39 +21,76 @@ chat_id = 'testtest11'
 replacement_text = '@test'
 
 
-async def create_database(DATABASE_NAME):
-    try:
-        connection = await aiosqlite.connect(DATABASE_NAME)
-        print("Database connection established.")
-        return connection
-    except aiosqlite.Error as e:
-        print(f"Error: {e}")
-        return None
-
-
-async def create_connections_table(connection):
-    try:
-        cursor = await connection.cursor()
-        await cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS free_games (
-                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                tel_channel TEXT NOT NULL,
-                eitaa_channel TEXT NOT NULL
-            );
-
-            """
+async def create_database():
+    conn = await aiosqlite.connect(DATABASE_NAME)
+    cursor = await conn.cursor()
+    await cursor.execute("""
+        CREATE TABLE IF NOT EXISTS active_chats (
+            chat_id TEXT PRIMARY KEY
         )
-        await connection.commit()
-        print("Connections table created.")
-    except aiosqlite.Error as e:
-        print(f"Error creating table: {e}")
+    """)
+    await conn.commit()
+    await conn.close()
+
+asyncio.run(create_database())
 
 
+async def contains_link(message):
+    url_pattern = re.compile(r'http\S+|www.\S+')
+    return bool(url_pattern.search(message))
 
-@telegram_client.on(events.NewMessage(chats=('testesge')))
+
+async def get_active_chats():
+    conn = await aiosqlite.connect(DATABASE_NAME)
+    cursor = await conn.cursor()
+    await cursor.execute("SELECT chat_id FROM active_chats")
+    active_chats = [row[0] for row in await cursor.fetchall()]
+    await conn.close()
+    return active_chats
+
+active_chats = asyncio.run(get_active_chats())
+
+
+@telegram_client.on(events.NewMessage(pattern='/addchat'))
+async def add_chat(event):
+    if event.message.chat_id == CHAT_ID:
+        chat_to_add = event.message.text.split()[1]
+        chat_entity = await telegram_client.get_entity(chat_to_add)
+        chat_id_to_add = chat_entity.id
+        conn = await aiosqlite.connect(DATABASE_NAME)
+        cursor = await conn.cursor()
+        await cursor.execute("INSERT OR IGNORE INTO active_chats (chat_id) VALUES (?)", (chat_id_to_add,))
+        await conn.commit()
+        await conn.close()
+        active_chats.append(chat_id_to_add)
+        await event.respond(f'Chat {chat_to_add} has been added.')
+
+
+@telegram_client.on(events.NewMessage(pattern='/deletechat'))
+async def delete_chat(event):
+    if event.message.chat_id == CHAT_ID:
+        chat_to_delete = event.message.text.split()[1]
+        chat_entity = await telegram_client.get_entity(chat_to_delete)
+        chat_id_to_delete = chat_entity.id
+        conn = await aiosqlite.connect(DATABASE_NAME)
+        cursor = await conn.cursor()
+        await cursor.execute("DELETE FROM active_chats WHERE chat_id = ?", (chat_id_to_delete,))
+        await conn.commit()
+        await conn.close()
+        active_chats.remove(chat_id_to_delete)
+        await event.respond(f'Chat {chat_to_delete} has been removed.')
+
+
+@telegram_client.on(events.NewMessage())
 async def telegram_event_handler(event):
+    if event.message.chat_id not in active_chats:
+        return
+
     message = event.message.text
+
+    if await contains_link(message):
+        return
+
     if event.message.grouped_id:
         return
 
@@ -104,28 +141,8 @@ async def telegram_event_handler(event):
         print(response.json())
 
 
-@telegram_client.on(events.NewMessage(func=lambda e: e.is_group))
-async def telegram_event_handler(event):
-    if event.message.chat_id == CHAT_ID:
-        message = event.message.text
-        if message == "/connect":
-            try:
-                conn = await aiosqlite.connect(DATABASE_NAME)
-                cursor = await conn.curser()
-                await cursor.execute("SELECT * FROM connections")
-                connections = await cursor.fetchall()
-                await conn.close()
-            except Exception as e:
-                print(e)
-            connection_button = []
-            if connections:
-                await telegram_client.send_message(CHAT_ID, "اتصالات موجود:", buttons=connection_button)
-                for connection in connections:
-                    # tel_channel, eitaa_channel = connection
-                    print("Bot Started.")
-                    print(connection)
+async def main():
+    await telegram_client.start()
+    await telegram_client.run_until_disconnected()
 
-
-
-telegram_client.start()
-asyncio.get_event_loop().run_forever()
+asyncio.run(main())
