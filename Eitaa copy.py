@@ -1,11 +1,11 @@
-from telethon import TelegramClient, events
+import os
+import re
+import time
 import asyncio
 import requests
-import time
-import re
-import os
 import aiosqlite
 from dotenv import load_dotenv
+from telethon import TelegramClient, events
 
 load_dotenv()
 CHAT_ID = int(os.getenv("ADMIN_ID"))
@@ -22,15 +22,18 @@ replacement_text = '@test'
 
 
 async def create_database():
-    conn = await aiosqlite.connect(DATABASE_NAME)
-    cursor = await conn.cursor()
-    await cursor.execute("""
-        CREATE TABLE IF NOT EXISTS active_chats (
-            chat_id TEXT PRIMARY KEY
-        )
-    """)
-    await conn.commit()
-    await conn.close()
+    try:
+        conn = await aiosqlite.connect(DATABASE_NAME)
+        cursor = await conn.cursor()
+        await cursor.execute("""
+            CREATE TABLE IF NOT EXISTS active_chats (
+                chat_id INTEGER PRIMARY KEY
+            )
+        """)        
+        await conn.commit()
+        await conn.close()
+    except Exception as e:
+            print("Error in create_database: " + e)
 
 asyncio.run(create_database())
 
@@ -41,12 +44,15 @@ async def contains_link(message):
 
 
 async def get_active_chats():
-    conn = await aiosqlite.connect(DATABASE_NAME)
-    cursor = await conn.cursor()
-    await cursor.execute("SELECT chat_id FROM active_chats")
-    active_chats = [row[0] for row in await cursor.fetchall()]
-    await conn.close()
-    return active_chats
+    try:
+        conn = await aiosqlite.connect(DATABASE_NAME)
+        cursor = await conn.cursor()
+        await cursor.execute("SELECT chat_id FROM active_chats")
+        active_chats = [row[0] for row in await cursor.fetchall()]
+        await conn.close()
+        return active_chats
+    except Exception as e:
+            print("Error in get_active_chat: " + e)
 
 active_chats = asyncio.run(get_active_chats())
 
@@ -54,31 +60,39 @@ active_chats = asyncio.run(get_active_chats())
 @telegram_client.on(events.NewMessage(pattern='/addchat'))
 async def add_chat(event):
     if event.message.chat_id == CHAT_ID:
-        chat_to_add = event.message.text.split()[1]
-        chat_entity = await telegram_client.get_entity(chat_to_add)
-        chat_id_to_add = chat_entity.id
-        conn = await aiosqlite.connect(DATABASE_NAME)
-        cursor = await conn.cursor()
-        await cursor.execute("INSERT OR IGNORE INTO active_chats (chat_id) VALUES (?)", (chat_id_to_add,))
-        await conn.commit()
-        await conn.close()
-        active_chats.append(chat_id_to_add)
-        await event.respond(f'Chat {chat_to_add} has been added.')
+        try :
+            chat_to_add = event.message.text.split()[1]
+            chat_entity = await telegram_client.get_entity(chat_to_add)
+            chat_id_to_add = chat_entity.id
+            chat_id_to_add = int('-100' + str(chat_id_to_add))
+            conn = await aiosqlite.connect(DATABASE_NAME)
+            cursor = await conn.cursor()
+            await cursor.execute("INSERT OR IGNORE INTO active_chats (chat_id) VALUES (?)", (chat_id_to_add,))
+            await conn.commit()
+            await conn.close()
+            active_chats.append(chat_id_to_add)
+            await event.respond(f'Chat {chat_to_add} has been added.')
+        except Exception as e:
+            print("Error in addchat: " + e)
 
 
 @telegram_client.on(events.NewMessage(pattern='/deletechat'))
 async def delete_chat(event):
     if event.message.chat_id == CHAT_ID:
-        chat_to_delete = event.message.text.split()[1]
-        chat_entity = await telegram_client.get_entity(chat_to_delete)
-        chat_id_to_delete = chat_entity.id
-        conn = await aiosqlite.connect(DATABASE_NAME)
-        cursor = await conn.cursor()
-        await cursor.execute("DELETE FROM active_chats WHERE chat_id = ?", (chat_id_to_delete,))
-        await conn.commit()
-        await conn.close()
-        active_chats.remove(chat_id_to_delete)
-        await event.respond(f'Chat {chat_to_delete} has been removed.')
+        try :
+            chat_to_delete = event.message.text.split()[1]
+            chat_entity = await telegram_client.get_entity(chat_to_delete)
+            chat_id_to_delete = chat_entity.id
+            chat_id_to_delete = int('-100' + str(chat_id_to_delete))
+            conn = await aiosqlite.connect(DATABASE_NAME)
+            cursor = await conn.cursor()
+            await cursor.execute("DELETE FROM active_chats WHERE chat_id = ?", (chat_id_to_delete,))
+            await conn.commit()
+            await conn.close()
+            active_chats.remove(chat_id_to_delete)
+            await event.respond(f'Chat {chat_to_delete} has been removed.')
+        except Exception as e:
+            print("Error in deletechat: " + e)
 
 
 @telegram_client.on(events.NewMessage())
@@ -115,8 +129,10 @@ async def telegram_event_handler(event):
             'caption': message,
             'date': time.time()
         }
-
-        response = requests.post(url, data=data, files=files)
+        try:
+            response = requests.post(url, data=data, files=files)
+        except Exception as e:
+            print("Error in request for send text message with file: " + e)
 
         files['file'].close()
         os.remove(file_path)
@@ -135,8 +151,10 @@ async def telegram_event_handler(event):
             'text': message,
             'date': time.time()
         }
-
-        response = requests.post(url, headers=headers, data=data)
+        try:
+            response = requests.post(url, headers=headers, data=data)
+        except Exception as e:
+            print("Error in request for send text message without file: " + e)
 
         print(response.json())
 
