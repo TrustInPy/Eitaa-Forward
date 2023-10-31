@@ -8,15 +8,16 @@ from dotenv import load_dotenv
 from telethon import TelegramClient, events
 
 load_dotenv()
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
 CHAT_ID = int(os.getenv("CHAT_ID"))
 DATABASE_NAME = os.getenv("DATABASE_NAME")
 INITIAL_ADMIN_ID = int(os.getenv("ADMIN_ID"))
+EITAA_TOKEN = os.getenv("EITAA_TOKEN")
 
 
-telegram_client = TelegramClient('aaa', '23382905', 'e461dd337c4a9c41578cd48c0e9ab3de', proxy=(
-    "socks5", "127.0.0.1", 10809, True))
-
-token = 'bot56443:49f2b2c3-047a-4897-a5c8-0236f2622680'
+# , proxy=("socks5", "127.0.0.1", 10809, True))
+telegram_client = TelegramClient('aaa', API_ID, API_HASH)
 
 
 async def create_database():
@@ -222,7 +223,7 @@ async def telegram_event_handler(event):
 
             if event.message.media:
                 file_path = await telegram_client.download_media(event.message)
-                url = f'https://eitaayar.ir/api/{token}/sendFile'
+                url = f'https://eitaayar.ir/api/{EITAA_TOKEN}/sendFile'
                 headers = {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -243,7 +244,7 @@ async def telegram_event_handler(event):
 
             else:
 
-                url = f'https://eitaayar.ir/api/{token}/sendMessage'
+                url = f'https://eitaayar.ir/api/{EITAA_TOKEN}/sendMessage'
 
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded'
