@@ -17,9 +17,6 @@ telegram_client = TelegramClient('aaa', '23382905', 'e461dd337c4a9c41578cd48c0e9
     "socks5", "127.0.0.1", 10809, True))
 
 token = 'bot56443:49f2b2c3-047a-4897-a5c8-0236f2622680'
-# token = 'bot83779:55b9fbae-1a76-4731-9add-173dbc02b839'
-# chat_id = 'testtest11'
-# replacement_text = '@testtest11'
 
 
 async def create_database():
@@ -124,6 +121,16 @@ async def get_active_chats():
 active_chats = asyncio.run(get_active_chats())
 
 
+@telegram_client.on(events.NewMessage(pattern='/help'))
+async def add_chat(event):
+    if not await is_admin(event.message.chat_id) and event.message.sender_id != INITIAL_ADMIN_ID:
+        return
+    if event.message.chat_id == CHAT_ID:
+        await telegram_client.send_message(event.message.chat_id, """
+        دستورات موجود :\n/removeadmin [user id]\n/addadmin [user id]\n/addchat [telegram chat] [eitaa chat] [replacement test*]\n/deletechat [telegram chat] [eitaa chat]\n/chats\n
+        """)
+
+
 @telegram_client.on(events.NewMessage(pattern='/addchat'))
 async def add_chat(event):
     if not await is_admin(event.message.chat_id) and event.message.sender_id != INITIAL_ADMIN_ID:
@@ -176,7 +183,7 @@ async def delete_chat(event):
             print("Error in deletechat: " + str(e))
 
 
-@telegram_client.on(events.NewMessage(pattern='/checkchats'))
+@telegram_client.on(events.NewMessage(pattern='/chats'))
 async def check_chats(event):
     if not await is_admin(event.message.chat_id) and event.message.sender_id != INITIAL_ADMIN_ID:
         return
