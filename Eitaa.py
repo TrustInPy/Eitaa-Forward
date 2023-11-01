@@ -19,6 +19,16 @@ EITAA_TOKEN = os.getenv("EITAA_TOKEN")
 # , proxy=("socks5", "127.0.0.1", 10809, True))
 telegram_client = TelegramClient('aaa', API_ID, API_HASH)
 
+proxies = {
+    'http': 'http://127.0.0.1:1071',
+    'https': 'http://127.0.0.1:1071',
+    'socks': 'socks://127.0.0.1:1070'
+}
+# proxies = {
+#     'http': 'socks5://127.0.0.1:10809',
+#     'https': 'socks5://127.0.0.1:10809'
+# }
+
 
 async def create_database():
     try:
@@ -178,7 +188,11 @@ async def delete_chat(event):
             await cursor.execute("DELETE FROM active_chats WHERE telegram_chat_id = ? AND chat_id = ?", (telegram_chat_id_to_delete, chat_id))
             await conn.commit()
             await conn.close()
-            active_chats.remove((telegram_chat_id_to_delete, chat_id))
+            elements_to_match = (telegram_chat_id_to_delete, chat_id)
+            for i in reversed(range(len(active_chats))):
+                if active_chats[i][:2] == elements_to_match:
+                    del active_chats[i]
+            # active_chats.remove((telegram_chat_id_to_delete, chat_id))
             await event.respond(f'Chat {chat_to_delete} has been removed from {chat_id}.')
         except Exception as e:
             print("Error in deletechat: " + str(e))
@@ -235,12 +249,12 @@ async def telegram_event_handler(event):
                 try:
                     with open(file_path, 'rb') as f:
                         files = {'file': f}
-                        response = requests.post(url, data=data, files=files)
+                        response = requests.post(url, data=data, files=files, proxs=("socks5", "127.0.0.1", 10809, True))
+                        print(response.json())
                 except Exception as e:
                     print("Error in request for send text message with file: " + str(e))
                 finally:
                     os.remove(file_path)
-                print(response.json())
 
             else:
 
@@ -256,15 +270,16 @@ async def telegram_event_handler(event):
                     'date': time.time()
                 }
                 try:
-                    response = requests.post(url, headers=headers, data=data)
+                    response = requests.post(url, headers=headers, data=data, proxies=proxies)
+                    print(response.json())
                 except Exception as e:
-                    print("Error in request for send text message without file: " + e)
+                    print("Error in request for send text message without file: " + str(e))
 
-                print(response.json())
 
 
 async def main():
     await telegram_client.start()
+    print("Started...")
     await telegram_client.run_until_disconnected()
 
 asyncio.run(main())
