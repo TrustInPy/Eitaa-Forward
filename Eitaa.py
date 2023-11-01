@@ -163,12 +163,20 @@ async def add_chat(event):
                 '-100' + str(telegram_chat_id_to_add))
             conn = await aiosqlite.connect(DATABASE_NAME)
             cursor = await conn.cursor()
-            await cursor.execute("INSERT OR IGNORE INTO active_chats (telegram_chat_id, chat_id, replacement_text) VALUES (?, ?, ?)", (telegram_chat_id_to_add, chat_id, replacement_text))
-            await conn.commit()
+
+            await cursor.execute("SELECT * FROM active_chats WHERE telegram_chat_id=?", (telegram_chat_id_to_add,))
+            data = await cursor.fetchone()
+
+            if data is None:
+                await cursor.execute("INSERT INTO active_chats (telegram_chat_id, chat_id, replacement_text) VALUES (?, ?, ?)", (telegram_chat_id_to_add, chat_id, replacement_text))
+                await conn.commit()
+                active_chats.append(
+                    (telegram_chat_id_to_add, chat_id, replacement_text))
+                await event.respond(f'Chat **{chat_to_add}** has been added to **{chat_id}** with replacement text "{replacement_text}".')
+            else:
+                await event.respond(f'Chat **{chat_to_add}** already exists.')
+
             await conn.close()
-            active_chats.append(
-                (telegram_chat_id_to_add, chat_id, replacement_text))
-            await event.respond(f'Chat **{chat_to_add}** has been added to **{chat_id}** with replacement text "{replacement_text}".')
         except Exception as e:
             print("Error in addchat: " + str(e))
 
@@ -259,7 +267,8 @@ async def telegram_event_handler(event):
                         print("---------------------------------")
                         print("Startint to upload --")
                         print(datetime.now())
-                        response = requests.post(url, data=data, files=files, proxies=proxies)
+                        response = requests.post(
+                            url, data=data, files=files, proxies=proxies)
                         print("---------------------------------")
                         print("Upload done --")
                         print(datetime.now())
@@ -286,11 +295,12 @@ async def telegram_event_handler(event):
                     print("---------------------------------")
                     print("Startint to send text message --")
                     print(datetime.now())
-                    response = requests.post(url, headers=headers, data=data, proxies=proxies)
+                    response = requests.post(
+                        url, headers=headers, data=data, proxies=proxies)
                     print(response.json())
                 except Exception as e:
-                    print("Error in request for send text message without file: " + str(e))
-
+                    print(
+                        "Error in request for send text message without file: " + str(e))
 
 
 async def main():
