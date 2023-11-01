@@ -249,7 +249,7 @@ async def telegram_event_handler(event):
                 try:
                     with open(file_path, 'rb') as f:
                         files = {'file': f}
-                        response = requests.post(url, data=data, files=files, proxs=("socks5", "127.0.0.1", 10809, True))
+                        response = requests.post(url, data=data, files=files, proxies=proxies)
                         print(response.json())
                 except Exception as e:
                     print("Error in request for send text message with file: " + str(e))
