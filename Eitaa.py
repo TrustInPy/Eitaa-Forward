@@ -4,6 +4,7 @@ import time
 import asyncio
 import requests
 import aiosqlite
+from datetime import datetime
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 
@@ -236,7 +237,13 @@ async def telegram_event_handler(event):
                 message = re.sub(r'@\w+', replacement_text, message)
 
             if event.message.media:
+                print("---------------------------------")
+                print("start of downloding media...")
+                print(datetime.now())
                 file_path = await telegram_client.download_media(event.message)
+                print("---------------------------------")
+                print("Download is done --")
+                print(datetime.now())
                 url = f'https://eitaayar.ir/api/{EITAA_TOKEN}/sendFile'
                 headers = {
                     'Content-Type': 'multipart/form-data'
@@ -249,7 +256,13 @@ async def telegram_event_handler(event):
                 try:
                     with open(file_path, 'rb') as f:
                         files = {'file': f}
+                        print("---------------------------------")
+                        print("Startint to upload --")
+                        print(datetime.now())
                         response = requests.post(url, data=data, files=files, proxies=proxies)
+                        print("---------------------------------")
+                        print("Upload done --")
+                        print(datetime.now())
                         print(response.json())
                 except Exception as e:
                     print("Error in request for send text message with file: " + str(e))
@@ -270,6 +283,9 @@ async def telegram_event_handler(event):
                     'date': time.time()
                 }
                 try:
+                    print("---------------------------------")
+                    print("Startint to send text message --")
+                    print(datetime.now())
                     response = requests.post(url, headers=headers, data=data, proxies=proxies)
                     print(response.json())
                 except Exception as e:
