@@ -39,6 +39,7 @@ async def create_database():
             CREATE TABLE IF NOT EXISTS active_chats (
                 telegram_chat_id INTEGER,
                 chat_id INTEGER,
+                chat_title TEXT,
                 replacement_text TEXT,
                 PRIMARY KEY (telegram_chat_id, chat_id)
             )
@@ -85,7 +86,7 @@ async def add_admin_command(event):
         try:
             user_id_to_add = int(event.message.text.split()[1])
             await add_admin(user_id_to_add)
-            await event.respond(f'User {user_id_to_add} has been added as an admin.')
+            await event.respond(f'🔸 User {user_id_to_add} has been added as an admin.')
         except Exception as e:
             print("Error in addadmin command: " + str(e))
 
@@ -96,7 +97,7 @@ async def remove_admin_command(event):
         try:
             user_id_to_remove = int(event.message.text.split()[1])
             await remove_admin(user_id_to_remove)
-            await event.respond(f'User {user_id_to_remove} has been removed from admins.')
+            await event.respond(f'🔻 User {user_id_to_remove} has been removed from admins.')
         except Exception as e:
             print("Error in removeadmin command: " + str(e))
 
@@ -138,7 +139,7 @@ async def add_chat(event):
     if not await is_admin(event.message.chat_id) and event.message.sender_id != INITIAL_ADMIN_ID:
         return
     if event.message.chat_id == CHAT_ID:
-        await telegram_client.send_message(event.message.chat_id, """
+        await telegram_client.send_message(event.message.chat_id, """❔ 
         دستورات موجود :\n/removeadmin [user id]\n/addadmin [user id]\n/addchat [telegram chat] [eitaa chat] [replacement test*]\n/deletechat [telegram chat] [eitaa chat]\n/chats\n
         """)
 
@@ -156,11 +157,12 @@ async def add_chat(event):
             try:
                 chat_entity = await telegram_client.get_entity(chat_to_add)
             except Exception as e:
-                await event.respond(f"There is no Chat as **{chat_to_add}**")
+                await event.respond(f"❌ There is no Chat as **{chat_to_add}**")
                 return
             telegram_chat_id_to_add = chat_entity.id
             telegram_chat_id_to_add = int(
                 '-100' + str(telegram_chat_id_to_add))
+            chat_title = chat_entity.title
             conn = await aiosqlite.connect(DATABASE_NAME)
             cursor = await conn.cursor()
 
@@ -168,13 +170,13 @@ async def add_chat(event):
             data = await cursor.fetchone()
 
             if data is None:
-                await cursor.execute("INSERT INTO active_chats (telegram_chat_id, chat_id, replacement_text) VALUES (?, ?, ?)", (telegram_chat_id_to_add, chat_id, replacement_text))
+                await cursor.execute("INSERT INTO active_chats (telegram_chat_id, chat_id, chat_title, replacement_text) VALUES (?, ?, ?, ?)", (telegram_chat_id_to_add, chat_id, chat_title, replacement_text))
                 await conn.commit()
                 active_chats.append(
-                    (telegram_chat_id_to_add, chat_id, replacement_text))
-                await event.respond(f'Chat **{chat_to_add}** has been added to **{chat_id}** with replacement text "{replacement_text}".')
+                    (telegram_chat_id_to_add, chat_id, chat_title, replacement_text))
+                await event.respond(f'➕ Chat **{chat_to_add}** has been added to **{chat_id}** with replacement text "{replacement_text}".')
             else:
-                await event.respond(f'Chat **{chat_to_add}** already exists.')
+                await event.respond(f'⚠️ Chat **{chat_to_add}** already exists.')
 
             await conn.close()
         except Exception as e:
@@ -202,7 +204,7 @@ async def delete_chat(event):
                 if active_chats[i][:2] == elements_to_match:
                     del active_chats[i]
             # active_chats.remove((telegram_chat_id_to_delete, chat_id))
-            await event.respond(f'Chat {chat_to_delete} has been removed from {chat_id}.')
+            await event.respond(f'➖ Chat {chat_to_delete} has been removed from {chat_id}.')
         except Exception as e:
             print("Error in deletechat: " + str(e))
 
@@ -215,14 +217,13 @@ async def check_chats(event):
         try:
             conn = await aiosqlite.connect(DATABASE_NAME)
             cursor = await conn.cursor()
-            await cursor.execute("SELECT telegram_chat_id, chat_id FROM active_chats")
-            active_chats = [(row[0], row[1]) for row in await cursor.fetchall()]
+            await cursor.execute("SELECT telegram_chat_id, chat_id, chat_title FROM active_chats")
+            active_chats = [(row[0], row[1], row[2]) for row in await cursor.fetchall()]
             await conn.close()
 
-            response_message = 'Active chats:\n'
-
-            for telegram_chat_id, chat_id in active_chats:
-                response_message += f'Telegram Chat ID: {telegram_chat_id}, Chat ID: {chat_id}\n'
+            response_message = '🔰 **Active chats:**\n'
+            for telegram_chat_id, chat_id, chat_title in active_chats:
+                response_message += f'Telegram Chat ID: {telegram_chat_id} \nTelegram Title: {chat_title} \nEitaa Chat: {chat_id}\n\n'
 
             await event.respond(response_message)
 
@@ -240,6 +241,8 @@ async def telegram_event_handler(event):
             chat_id = chat[1]
             replacement_text = chat[2]
             message = event.message.text
+
+            message = message.replace('*', '')
 
             if '@' in message and replacement_text:
                 message = re.sub(r'@\w+', replacement_text, message)
