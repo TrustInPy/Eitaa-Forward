@@ -247,6 +247,13 @@ async def telegram_event_handler(event):
             if '@' in message and replacement_text:
                 message = re.sub(r'@\w+', replacement_text, message)
 
+            if '#تلگرام' in message:
+                return
+            
+            if event.message.media:
+                if event.message.grouped_id is not None:
+                    return
+
             if event.message.media:
                 print("---------------------------------")
                 print("start of downloding media...")
