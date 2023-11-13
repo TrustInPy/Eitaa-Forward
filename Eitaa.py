@@ -244,7 +244,7 @@ async def telegram_event_handler(event):
 
             message = message.replace('*', '')
 
-            if '@' in message and replacement_text is not None:
+            if '@' in message and replacement_text != '':
                 message = re.sub(r'@\w+', replacement_text, message)
 
             if '#تلگرام' in message:
