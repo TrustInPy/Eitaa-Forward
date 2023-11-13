@@ -239,12 +239,12 @@ async def telegram_event_handler(event):
     for chat in active_chats:
         if chat[0] == event.message.chat_id:
             chat_id = chat[1]
-            replacement_text = chat[2]
+            replacement_text = chat[3] if len(chat) > 3 else None
             message = event.message.text
 
             message = message.replace('*', '')
 
-            if '@' in message and replacement_text:
+            if '@' in message and replacement_text is not None:
                 message = re.sub(r'@\w+', replacement_text, message)
 
             if '#تلگرام' in message:
@@ -275,7 +275,7 @@ async def telegram_event_handler(event):
                     with open(file_path, 'rb') as f:
                         files = {'file': f}
                         print("---------------------------------")
-                        print("Startint to upload --")
+                        print("Starting to upload --")
                         print(datetime.now())
                         response = requests.post(
                             url, data=data, files=files, proxies=proxies)
@@ -303,7 +303,7 @@ async def telegram_event_handler(event):
                 }
                 try:
                     print("---------------------------------")
-                    print("Startint to send text message --")
+                    print("Starting to send text message --")
                     print(datetime.now())
                     response = requests.post(
                         url, headers=headers, data=data, proxies=proxies)
